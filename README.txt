@@ -8,6 +8,8 @@ Compounds:
 #lhs:  left side (null if unary) (name of Symbol or compound--compound must already exist)
 #op:   operator (null if postive unary)
 #inKB: boolean which is false if this is just an expression used to build a larger sentence and should not be in the KB
+Target:
+#id of one Symbol to check entailment
 
 # Operator Specification:
 # not = not
