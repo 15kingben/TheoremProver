@@ -11,4 +11,4 @@ Compounds:
 6 BobTruth or 5 false
 7 CalTruth bicond 6 true
 Target:
-CalTruth
+AmyTruth

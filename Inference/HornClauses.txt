@@ -14,4 +14,4 @@ Compounds:
 7 6 imp Horned true
 8 Horned imp Magical true
 Target:
-Magical
+TheUnicornIsMagical null null Magical

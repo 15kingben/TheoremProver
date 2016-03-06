@@ -186,7 +186,7 @@ def parseKB(fileName, KB):
 
 
 KB = KnowledgeBase()
-parseKB("Wumpus.txt", KB)
+parseKB("LiarsandTruthTellers.txt", KB)
 
 model = Model()
 KB.buildModels(KB.SymbolTable, model)

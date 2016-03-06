@@ -10,6 +10,7 @@ Compounds:
 #inKB: boolean which is false if this is just an expression used to build a larger sentence and should not be in the KB
 Target:
 #id of one Symbol to check entailment
+#If we're in Inference/ this must be of the Compound form but leave off the inKB part
 
 # Operator Specification:
 # not = not

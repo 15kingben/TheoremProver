@@ -78,6 +78,13 @@ class KnowledgeBase: #the knowledge bsae with a Dict of Symbols and Compound Sen
                 return False
         return True
 
+    def countSatisfaction(self):
+        count = 0
+        for key in self.SatList:
+            if self.SatList[key]:
+                count+=1
+        return count
+
     def pickRandomUnsatisfied(self):
         slist = (list(self.SatList.keys()))
         r = random.choice(slist)
@@ -86,6 +93,25 @@ class KnowledgeBase: #the knowledge bsae with a Dict of Symbols and Compound Sen
 
         sent = r
         return self.goDeeper(self.Sentences[sent])
+
+    def pickBestUnsatisfied(self):
+        max = 0
+        mod = self.model.symbolMap
+        flipMax = None#default value
+
+        for flip in mod:
+            mod[flip] = not mod[flip]
+            count = self.countSatisfaction()
+            if count >= max:
+                max = count
+                flipMax = flip
+        if flipMax == None:
+            flipMax = random.choice(mod.keys())
+        return self.Sentences[flipMax]
+
+
+
+
 
     def pickRandom(self):
         slist = (list(self.SatList.keys()))
@@ -236,7 +262,7 @@ def walkSat(KB, depth, ret):
             return False
 
         #A 50% probability of random or greedy pick
-        flip = KB.pickRandomUnsatisfied().name if random.choice([True,False]) else KB.pickRandom().name
+        flip = KB.pickRandomUnsatisfied().name if random.choice([True,False]) else KB.pickBestUnsatisfied().name
 
         KB.model.symbolMap[flip] = not KB.model.symbolMap[flip]
 
@@ -276,7 +302,7 @@ def checkEntailment(KB):
 
 print(os.getcwd())
 KB = KnowledgeBase()
-parseKB("Wumpus.txt", KB)
+parseKB("HornClauses.txt", KB)
 
 
 KB.printProblem()
