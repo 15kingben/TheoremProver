@@ -10,31 +10,40 @@
 
 from abc import ABCMeta, abstractmethod
 import copy
+import random
+import os
+
+DEPTH_LIMIT = 10000  #If we dont find it after this there probably isnt one
+
 
 class KnowledgeBase: #the knowledge bsae with a Dict of Symbols and Compound Sentences
     def __init__(self):
         self.Sentences = {}
         self.SymbolTable = []
-        self.modelList = []
-        self.Target = ""
+        self.model = Model()
+        self.Target = None
+        self.SatList = {}
 
-    def buildModels(self, symbolList, model):
+    def buildRandomModel(self, symbolList, model):
 
         if len(symbolList) == 0:
-            self.modelList.append(model)
             return
-
-
         sym = symbolList[0]
-        modelA = copy.deepcopy(model)
-
-        model.setEntry(sym.name, False)
-        modelA.setEntry(sym.name, True)
-
-        self.buildModels(symbolList[1:], model)
-        self.buildModels(symbolList[1:], modelA)
+        model.setEntry(sym.name, random.choice([True, False]))
+        self.buildRandomModel(symbolList[1:], model)
 
 
+    def printModel(self):
+        self.model.printEntries(self)
+        print( "|\t", end="")
+        self.printKB(self.model)
+        print("")
+
+    def printProblem(self):
+        self.printSymbols()
+        print("|\t", end="")
+        self.printKB()
+        print("")
 
     def printKB(self, model = None):
         isSat = True
@@ -50,24 +59,52 @@ class KnowledgeBase: #the knowledge bsae with a Dict of Symbols and Compound Sen
         if isSat and model != None:
             print("Satisfied!", end="")
 
-    def checkEntailment(self, propName):
-        entailed = True
-        for model in self.modelList:
-            kbSat = True
-            for key in sorted(self.Sentences.keys()):
-                if ( type(self.Sentences[key]) is CompoundSentence ) and (self.Sentences[key].inKB) and (not self.Sentences[key].isSatisfied(model)):
-                    kbSat = False
-                    break
-            if  (kbSat and not model.symbolMap[propName]):
-                entailed = False
 
-        return entailed
 
 
 
     def printSymbols(self):
         for i in self.SymbolTable:
             print(i.name[0:min(len(i.name)-1,6)], "\t", end="")
+
+    def updateSatisfaction(self):
+        for key in (self.Sentences.keys()):
+            if type(self.Sentences[key]) is CompoundSentence and (self.Sentences[key].inKB):
+                self.SatList[self.Sentences[key].name] = self.Sentences[key].isSatisfied(self.model)
+
+    def checkSatisfaction(self):
+        for key in self.SatList:
+            if not self.SatList[key]:
+                return False
+        return True
+
+    def pickRandomUnsatisfied(self):
+        slist = (list(self.SatList.keys()))
+        r = random.choice(slist)
+        while self.SatList[r]:
+            r = random.choice(slist)
+
+        sent = r
+        return self.goDeeper(self.Sentences[sent])
+
+    def pickRandom(self):
+        slist = (list(self.SatList.keys()))
+        sent = random.choice(slist)
+        return self.goDeeper(self.Sentences[sent])
+
+    def goDeeper(self, sent):
+
+        if type(sent) is Symbol:
+            return sent
+        else:
+            if(sent.lhs == None):
+                return self.goDeeper(sent.rhs)
+            return self.goDeeper(random.choice([sent.lhs,sent.rhs]))
+
+
+
+
+
 
 
 class Sentence:
@@ -87,8 +124,9 @@ class CompoundSentence(Sentence):
         self.rhs = KB.Sentences[right]
         self.op = op #the connective
         self.name = name
-        self.inKB = inKB
         self.KB = KB
+
+        self.inKB = inKB
         KB.Sentences[name] = self
 
 
@@ -170,35 +208,78 @@ def parseKB(fileName, KB):
                 op = None
             newCompound = CompoundSentence(name, left, right, op, KB, (inKB == "true"))
             s=f.readline()
+
         s=f.readline()
-        s=s.split()[0]
-        KB.Target = s
+
+        s = s.split()
+        name = s[0]#a string name for the compound
+        left = s[1]#a string name for the left symbol/compound
+        op = s[2]
+        right = s[3]#a string name for the right symbol/compound
+        if left == "null":
+            left = None
+        if op == "null":
+            op = None
+        KB.Target = CompoundSentence(name, left, right, op, KB, False)
+
+
+def walkSat(KB, depth, ret):
+    KB.printModel()
+    KB.updateSatisfaction()
+    b = KB.checkSatisfaction()
+    if b:
+        ret.value = depth
+        return True
+    else:
+        if depth == 0:
+            ret.value = 0
+            return False
+
+        #A 50% probability of random or greedy pick
+        flip = KB.pickRandomUnsatisfied().name if random.choice([True,False]) else KB.pickRandom().name
+
+        KB.model.symbolMap[flip] = not KB.model.symbolMap[flip]
+
+        return walkSat(KB, depth -1, ret)
+
+
+class intWrapper:
+    def __init__(self):
+        self.value = 0
+
+def checkEntailment(KB):
+    maxDepth = DEPTH_LIMIT
+    x = intWrapper()
+    KB.buildRandomModel(KB.SymbolTable, KB.model)
+
+    success = walkSat(KB, maxDepth,x)
+    print("\n")
+    if not success:
+        print("No satisfying model found for given Knowledge Base")
+    else:
+
+        maxDepth = ( maxDepth - x.value+2)*20  #really rough guess, if it takes x tries to find the satisfying solutions, we should be able to find the contradiction if there is one in 100*x moves
+        print(maxDepth)
+
+        NotTarget = CompoundSentence("NotTarget", None, KB.Target.name, "not", KB, True)
+        KB.buildRandomModel(KB.SymbolTable, KB.model)
+        success = walkSat(KB, maxDepth,x)
+        propName = KB.Target.name
+        if(success):
+            print("Model found which satisfies NOT ", propName, ", ", propName, " is not entailed.")
+        else:
+            print("No model found which satisfies NOT ", propName, ", ", propName, " is likely entailed.")
 
 
 
 
 
-
-
-
-
-
-
-
+print(os.getcwd())
 KB = KnowledgeBase()
 parseKB("Wumpus.txt", KB)
 
-model = Model()
-KB.buildModels(KB.SymbolTable, model)
 
-KB.printSymbols()
-print("|\t", end="")
-KB.printKB()
-print("")
-for i in KB.modelList:
-    i.printEntries(KB)
-    print("|\t", end="")
-    KB.printKB(i)
-    print("")
+KB.printProblem()
 
-print(KB.checkEntailment(KB.Target))
+
+checkEntailment(KB)
